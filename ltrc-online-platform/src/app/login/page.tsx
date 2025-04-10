@@ -161,7 +161,7 @@ const Login = (): JSX.Element => {
         </form>
         
         <div className="signup-link">
-          Don't have an account? <a href="/signup">Sign up</a>
+          No account, no problem? <a href="/signup">Sign up here</a>
         </div>
       </div>
     </div>
