@@ -1,0 +1,120 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  
+  html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: linear-gradient(to bottom, #1e3a8a, #1e40af);
+  }
+  
+
+
+
+/* Main container styles */
+.home-container {
+    min-height: 100vh;
+    background: linear-gradient(to bottom, #1e3a8a, #1e40af);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Hero section styles */
+  .hero-section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 4rem 1.5rem;
+    text-align: center;
+  }
+  
+  .welcome-text {
+    font-size: 2.25rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+  }
+  
+  .main-heading {
+    font-size: 3rem;
+    font-weight: bold;
+    color: #facc15;
+    margin-bottom: 2rem;
+  }
+  
+  .sub-heading {
+    font-size: 1.5rem;
+    margin-bottom: 3rem;
+  }
+  
+  /* Call to Action buttons */
+  .cta-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+  
+  .primary-btn, .secondary-btn {
+    padding: 1rem 2rem;
+    font-weight: bold;
+    font-size: 1.25rem;
+    border-radius: 0.5rem;
+    text-decoration: none;
+    transition: all 0.3s;
+  }
+  
+  .primary-btn {
+    background-color: #facc15;
+    color: #1e3a8a;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .primary-btn:hover {
+    background-color: #fde047;
+  }
+  
+  .secondary-btn {
+    border: 2px solid white;
+    color: white;
+  }
+  
+  .secondary-btn:hover {
+    background-color: white;
+    color: #1e3a8a;
+  }
+  
+  /* Media queries for responsive design */
+  @media (min-width: 768px) {
+    .welcome-text {
+      font-size: 3rem;
+    }
+    
+    .main-heading {
+      font-size: 3.75rem;
+    }
+    
+    .sub-heading {
+      font-size: 1.875rem;
+    }
+    
+    .cta-container {
+      flex-direction: row;
+      gap: 1.5rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .welcome-text {
+      font-size: 3.75rem;
+    }
+    
+    .main-heading {
+      font-size: 4.5rem;
+    }
+  }
