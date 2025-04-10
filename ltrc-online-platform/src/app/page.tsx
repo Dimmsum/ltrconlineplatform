@@ -1,3 +1,4 @@
+"use client"
 import './home.css'
 
 const Home = () => {
