@@ -2,13 +2,15 @@
 
 import React, { useState, FormEvent, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
+import { addDoc, collection } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../useAuth'; // Make sure this path matches where you save the hook
-import { auth } from '../../firebase/config'; // Update this path to match your project structure
+import { useAuth } from '../useAuth'; // Adjust path as needed
+import { auth, db } from '../../firebase/config'; // Adjust path as needed
 import './dashboard.css';
 
 interface FormData {
   helpTopic: string;
+  additionalInfo: string;
   appointmentDate: string;
   appointmentTime: string;
 }
@@ -17,15 +19,18 @@ const Dashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>('');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitSuccess, setSubmitSuccess] = useState<boolean>(false);
   const router = useRouter();
   const { user, loading } = useAuth();
   
-  // In a real app, this would be fetched from an API set by admins
-  const [availableTimes, setAvailableTimes] = useState<{[key: string]: string[]}>({
-    // Example of pre-defined available times (would come from admin settings)
-    [new Date().toDateString()]: ['9:00 AM', '10:00 AM', '2:00 PM'],
-    [new Date(new Date().setDate(new Date().getDate() + 1)).toDateString()]: ['11:00 AM', '1:00 PM', '3:00 PM']
-  });
+  // Since all times are available, we don't need to track this state
+  // const [availableTimes, setAvailableTimes] = useState<{[key: string]: string[]}>({
+  //   // Example of pre-defined available times (would come from admin settings)
+  //   [new Date().toDateString()]: ['9:00 AM', '10:00 AM', '2:00 PM'],
+  //   [new Date(new Date().setDate(new Date().getDate() + 1)).toDateString()]: ['11:00 AM', '1:00 PM', '3:00 PM']
+  // });
   
   // Redirect if not authenticated
   useEffect(() => {
@@ -58,21 +63,53 @@ const Dashboard: React.FC = () => {
   };
   
   // Handle form submission
-  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(false);
     
-    const target = e.target as typeof e.target & {
-      helpTopic: { value: string };
-    };
-    
-    const formData: FormData = {
-      helpTopic: target.helpTopic.value,
-      appointmentDate: selectedDate ? selectedDate.toISOString().split('T')[0] : '',
-      appointmentTime: selectedTime
-    };
-    
-    console.log("Form submitted with data:", formData);
-    // You can add your submission logic here
+    try {
+      if (!user) throw new Error("User not authenticated");
+      if (!selectedDate) throw new Error("Please select a date");
+      if (!selectedTime) throw new Error("Please select a time");
+      
+      const form = e.currentTarget;
+      const formElements = form.elements as HTMLFormControlsCollection;
+      const helpTopicElement = formElements.namedItem('helpTopic') as HTMLSelectElement;
+      const additionalInfoElement = formElements.namedItem('additionalInfo') as HTMLTextAreaElement;
+      
+      // Prepare the meeting data
+      const meetingData = {
+        IDNumber: user.uid, // User's Firebase UID as ID Number
+        Name: user.displayName || user.email?.split('@')[0] || 'Unknown',
+        Request: helpTopicElement ? helpTopicElement.value : 'Not specified',
+        AdditionalInformation: additionalInfoElement ? additionalInfoElement.value : '',
+        Date: selectedDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
+        Time: selectedTime,
+        createdAt: new Date(),
+        userEmail: user.email || 'No email'
+      };
+      
+      // Add to Firestore
+      const meetingsRef = collection(db, 'meetings');
+      await addDoc(meetingsRef, meetingData);
+      
+      console.log("Meeting scheduled successfully:", meetingData);
+      setSubmitSuccess(true);
+      
+      // Reset form inputs manually
+      if (helpTopicElement) helpTopicElement.value = '';
+      if (additionalInfoElement) additionalInfoElement.value = '';
+      setSelectedDate(null);
+      setSelectedTime('');
+      
+    } catch (error) {
+      console.error("Error scheduling meeting:", error);
+      setSubmitError(error instanceof Error ? error.message : 'An unknown error occurred');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   // Calendar functions
@@ -130,18 +167,16 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  // Handle time selection - only allow selecting available times
+  // Handle time selection - all times are now available
   const handleTimeSelect = (time: string) => {
-    if (selectedDate && isTimeAvailable(selectedDate, time)) {
-      setSelectedTime(time);
-    }
+    setSelectedTime(time);
   };
 
-  // Check if a time slot is available
+  // For now, all times are available
   const isTimeAvailable = (date: Date | null, time: string): boolean => {
     if (!date) return false;
-    const dateStr = date.toDateString();
-    return Boolean(availableTimes[dateStr] && availableTimes[dateStr].includes(time));
+    // Making all times available
+    return true;
   };
 
   // Format date as Month Year
@@ -189,6 +224,30 @@ const Dashboard: React.FC = () => {
 
       <div className="main-content">
         <div className="form-container">
+          {submitSuccess && (
+            <div className="success-message">
+              Your meeting has been scheduled successfully!
+              <button 
+                className="close-btn"
+                onClick={() => setSubmitSuccess(false)}
+              >
+                ×
+              </button>
+            </div>
+          )}
+          
+          {submitError && (
+            <div className="error-message">
+              {submitError}
+              <button 
+                className="close-btn"
+                onClick={() => setSubmitError(null)}
+              >
+                ×
+              </button>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label htmlFor="helpDropdown" className="form-label">
@@ -199,6 +258,7 @@ const Dashboard: React.FC = () => {
                 name="helpTopic"
                 defaultValue=""
                 className="form-select"
+                required
               >
                 <option value="" disabled>--Please select an option--</option>
                 <option value="verbs">Verbs</option>
@@ -207,6 +267,19 @@ const Dashboard: React.FC = () => {
                 <option value="vocabulary">Vocabulary</option>
                 <option value="pronunciation">Pronunciation</option>
               </select>
+            </div>
+            
+            <div className="form-group">
+              <label htmlFor="additionalInfo" className="form-label">
+                Additional Information
+              </label>
+              <textarea
+                id="additionalInfo"
+                name="additionalInfo"
+                className="form-textarea"
+                placeholder="Please provide any additional details about what you need help with..."
+                rows={4}
+              ></textarea>
             </div>
             
             <div className="form-group">
@@ -253,10 +326,6 @@ const Dashboard: React.FC = () => {
                             : selectedDate && day === selectedDate.getDate() && currentDate.getMonth() === selectedDate.getMonth()
                               ? 'selected-day'
                               : ''
-                        } ${
-                          day && isTimeAvailable(new Date(currentDate.getFullYear(), currentDate.getMonth(), day), selectedTime)
-                            ? 'available-day'
-                            : ''
                         }`}
                         onClick={() => day && handleDateSelect(day)}
                       >
@@ -273,26 +342,17 @@ const Dashboard: React.FC = () => {
                       Select time for {selectedDate.toLocaleDateString()}:
                     </h3>
                     <div className="time-slots">
-                      {timeSlots.map(time => {
-                        const available = isTimeAvailable(selectedDate, time);
-                        return (
-                          <div
-                            key={time}
-                            className={`time-slot ${
-                              selectedTime === time
-                                ? 'selected-time'
-                                : ''
-                            } ${
-                              available
-                                ? 'available-time'
-                                : 'unavailable-time'
-                            }`}
-                            onClick={() => available && handleTimeSelect(time)}
-                          >
-                            {time}
-                          </div>
-                        );
-                      })}
+                      {timeSlots.map(time => (
+                        <div
+                          key={time}
+                          className={`time-slot available-time ${
+                            selectedTime === time ? 'selected-time' : ''
+                          }`}
+                          onClick={() => handleTimeSelect(time)}
+                        >
+                          {time}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
@@ -319,9 +379,9 @@ const Dashboard: React.FC = () => {
             <button 
               type="submit" 
               className="submit-btn" 
-              disabled={!selectedDate || !selectedTime}
+              disabled={!selectedDate || !selectedTime || submitting}
             >
-              Submit
+              {submitting ? 'Scheduling...' : 'Schedule Meeting'}
             </button>
           </form>
         </div>
