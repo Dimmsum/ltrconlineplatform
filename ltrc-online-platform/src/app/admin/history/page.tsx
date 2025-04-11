@@ -1,6 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, where, DocumentData, QueryDocumentSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, DocumentData, QueryDocumentSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '../../../firebase/config';
 import '../admin.css';
 
