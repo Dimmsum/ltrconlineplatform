@@ -69,16 +69,31 @@ const AdminLogin = (): JSX.Element => {
       let errorMessage = 'Failed to log in';
       
       // Handle specific Firebase errors
-      if ((error as AuthError).code === 'auth/invalid-email') {
-        errorMessage = 'Invalid email address';
-      } else if ((error as AuthError).code === 'auth/user-disabled') {
-        errorMessage = 'This account has been disabled';
-      } else if ((error as AuthError).code === 'auth/user-not-found') {
-        errorMessage = 'No account found with this email';
-      } else if ((error as AuthError).code === 'auth/wrong-password') {
-        errorMessage = 'Incorrect password';
-      } else if ((error as any).message) {
-        errorMessage = `Error: ${(error as any).message}`;
+      const errorCode = (error as AuthError).code;
+      
+      switch(errorCode) {
+        case 'auth/invalid-email':
+          errorMessage = 'Invalid email address format';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'This account has been disabled';
+          break;
+        case 'auth/user-not-found':
+          errorMessage = 'No account found with this email';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'Incorrect password';
+          break;
+        case 'auth/invalid-credential':
+          errorMessage = 'Invalid email or password';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'Too many failed login attempts. Please try again later or reset your password';
+          break;
+        default:
+          if ((error as Error).message) {
+            errorMessage = `Error: ${(error as Error).message}`;
+          }
       }
       
       setError(errorMessage);

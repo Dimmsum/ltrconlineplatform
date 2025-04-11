@@ -5,7 +5,7 @@ import { collection, getDocs, query, orderBy, DocumentData, QueryDocumentSnapsho
 import { db } from '../../firebase/config';
 
 // Define TypeScript interfaces for your data
-interface MeetingRequest {
+interface HelpRequest {
   id: string;
   IDNumber?: string;
   Name?: string;
@@ -15,43 +15,43 @@ interface MeetingRequest {
   AdditionalInformation?: string;
   userEmail?: string;
   createdAt?: Timestamp | Date | string | number | null;
-  [key: string]: any; // Allow for additional properties
+  [key: string]: string | number | boolean | Timestamp | Date | null | undefined;
 }
 
 const Admin = () => {
   const [activePage, setActivePage] = useState<'home' | 'history' | 'settings'>('home');
-  const [meetingRequests, setMeetingRequests] = useState<MeetingRequest[]>([]);
+  const [helpRequests, setHelpRequests] = useState<HelpRequest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchMeetingRequests = async () => {
+    const fetchHelpRequests = async () => {
       try {
         setLoading(true);
-        const meetingsRef = collection(db, 'meetings');
-        const q = query(meetingsRef, orderBy('createdAt', 'desc'));
+        const helpRequestsRef = collection(db, 'meetings');
+        const q = query(helpRequestsRef, orderBy('createdAt', 'desc'));
         const querySnapshot = await getDocs(q);
         
-        const requests: MeetingRequest[] = [];
-        querySnapshot.forEach((doc) => {
+        const requests: HelpRequest[] = [];
+        querySnapshot.forEach((doc: QueryDocumentSnapshot<DocumentData>) => {
           const data = doc.data();
           requests.push({
             id: doc.id,
             ...data,
             createdAt: data.createdAt || null
-          } as MeetingRequest);
+          } as HelpRequest);
         });
         
-        setMeetingRequests(requests);
+        setHelpRequests(requests);
         setLoading(false);
       } catch (err) {
-        console.error("Error fetching meeting requests: ", err);
-        setError("Failed to load meeting requests. Please try again later.");
+        console.error("Error fetching help requests: ", err);
+        setError("Failed to load help requests. Please try again later.");
         setLoading(false);
       }
     };
 
-    fetchMeetingRequests();
+    fetchHelpRequests();
   }, []);
 
   const renderNavbar = () => (
@@ -113,15 +113,15 @@ const Admin = () => {
   const renderHome = () => (
     <div className="home-container">
       {loading ? (
-        <div className="loading">Loading meeting requests...</div>
+        <div className="loading">Loading help requests...</div>
       ) : error ? (
         <div className="error">{error}</div>
       ) : (
         <div className="request-list">
-          {meetingRequests.length === 0 ? (
-            <div className="no-requests">No meeting requests found</div>
+          {helpRequests.length === 0 ? (
+            <div className="no-requests">No help requests found</div>
           ) : (
-            meetingRequests.map(item => (
+            helpRequests.map(item => (
               <div key={item.id} className="request-container">
                 <div className="request-detail">
                   <span className="label">ID Number:</span>

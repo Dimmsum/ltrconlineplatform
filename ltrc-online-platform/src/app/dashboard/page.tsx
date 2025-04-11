@@ -8,12 +8,7 @@ import { useAuth } from '../useAuth'; // Adjust path as needed
 import { auth, db } from '../../firebase/config'; // Adjust path as needed
 import './dashboard.css';
 
-interface FormData {
-  helpTopic: string;
-  additionalInfo: string;
-  appointmentDate: string;
-  appointmentTime: string;
-}
+// Removed unused FormData interface
 
 const Dashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -172,12 +167,7 @@ const Dashboard: React.FC = () => {
     setSelectedTime(time);
   };
 
-  // For now, all times are available
-  const isTimeAvailable = (date: Date | null, time: string): boolean => {
-    if (!date) return false;
-    // Making all times available
-    return true;
-  };
+  // Removed unused isTimeAvailable function
 
   // Format date as Month Year
   const formatMonthYear = (date: Date): string => {
@@ -192,15 +182,16 @@ const Dashboard: React.FC = () => {
     if (!timeStr) return '';
     
     const [time, period] = timeStr.split(' ');
-    let [hours, minutes] = time.split(':').map(Number);
+    const [hours, minutes] = time.split(':').map(Number);
+    let adjustedHours = hours;
     
     if (period === 'PM' && hours !== 12) {
-      hours += 12;
+      adjustedHours += 12;
     } else if (period === 'AM' && hours === 12) {
-      hours = 0;
+      adjustedHours = 0;
     }
     
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    return `${adjustedHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
   };
 
   // Show loading state while checking authentication
