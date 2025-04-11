@@ -1,0 +1,38 @@
+/* Admin history specific styles */
+.history-container {
+    padding: 1rem;
+  }
+  
+  .history-container h2 {
+    margin-bottom: 2rem;
+    color: #facc15;
+    text-align: center;
+  }
+  
+  .no-requests {
+    text-align: center;
+    padding: 2rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    margin-top: 2rem;
+  }
+  
+  .loading, .error {
+    text-align: center;
+    padding: 2rem;
+    font-style: italic;
+  }
+  
+  .error {
+    color: #f87171;
+  }
+  
+  /* Additional styles for past requests */
+  .request-container.past-request {
+    border-left: 4px solid #facc15;
+    opacity: 0.8;
+  }
+  
+  .request-container.past-request:hover {
+    opacity: 1;
+  }
