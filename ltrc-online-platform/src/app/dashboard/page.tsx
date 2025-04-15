@@ -2,7 +2,7 @@
 
 import React, { useState, FormEvent, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
-import { addDoc, collection, doc, getDoc, query, where, orderBy, getDocs } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, query, where, getDocs } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../useAuth'; // Adjust path as needed
 import { auth, db } from '../../firebase/config'; // Adjust path as needed
@@ -21,7 +21,7 @@ interface Meeting {
   Time: string;
   Request: string;
   AdditionalInformation: string;
-  createdAt: any;
+  createdAt: Date;
   userId: string;
 }
 
@@ -508,7 +508,7 @@ const Dashboard: React.FC = () => {
               </div>
             ) : (
               <div className="no-meetings">
-                <p>You don't have any upcoming meetings.</p>
+                <p>You don&apos;t have any upcoming meetings.</p>
                 <p>Schedule one using the form on the left!</p>
               </div>
             )}
