@@ -501,7 +501,14 @@ const Dashboard: React.FC = () => {
                     )}
                     
                     <div className="meeting-actions">
-                      <a href="#" className="zoom-link">Join Zoom Meeting</a>
+                      <a 
+                        href="https://us05web.zoom.us/j/9165424397?pwd=fdV2viHqAWei31YqiDmoknU64yMEk3.1" 
+                        className="zoom-link"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Join Zoom Meeting
+                      </a>
                     </div>
                   </div>
                 ))}
