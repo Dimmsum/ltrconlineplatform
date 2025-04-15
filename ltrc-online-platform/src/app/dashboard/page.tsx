@@ -2,13 +2,18 @@
 
 import React, { useState, FormEvent, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../useAuth'; // Adjust path as needed
 import { auth, db } from '../../firebase/config'; // Adjust path as needed
 import './dashboard.css';
 
-// Removed unused FormData interface
+interface UserData {
+  idNumber?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+}
 
 const Dashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -17,15 +22,31 @@ const Dashboard: React.FC = () => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<boolean>(false);
+  const [userData, setUserData] = useState<UserData | null>(null);
   const router = useRouter();
   const { user, loading } = useAuth();
   
-  // Since all times are available, we don't need to track this state
-  // const [availableTimes, setAvailableTimes] = useState<{[key: string]: string[]}>({
-  //   // Example of pre-defined available times (would come from admin settings)
-  //   [new Date().toDateString()]: ['9:00 AM', '10:00 AM', '2:00 PM'],
-  //   [new Date(new Date().setDate(new Date().getDate() + 1)).toDateString()]: ['11:00 AM', '1:00 PM', '3:00 PM']
-  // });
+  // Fetch user data from Firestore
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user?.uid) {
+        try {
+          const userDocRef = doc(db, 'users', user.uid);
+          const userSnapshot = await getDoc(userDocRef);
+          
+          if (userSnapshot.exists()) {
+            setUserData(userSnapshot.data() as UserData);
+          }
+        } catch (error) {
+          console.error('Error fetching user data:', error);
+        }
+      }
+    };
+    
+    if (user) {
+      fetchUserData();
+    }
+  }, [user]);
   
   // Redirect if not authenticated
   useEffect(() => {
@@ -48,7 +69,9 @@ const Dashboard: React.FC = () => {
   const getUserName = () => {
     if (!user) return 'User';
     
-    if (user.displayName) {
+    if (userData?.firstName && userData?.lastName) {
+      return `${userData.firstName} ${userData.lastName}`;
+    } else if (user.displayName) {
       return user.displayName;
     } else if (user.email) {
       return user.email.split('@')[0];
@@ -66,6 +89,7 @@ const Dashboard: React.FC = () => {
     
     try {
       if (!user) throw new Error("User not authenticated");
+      if (!userData) throw new Error("User data not loaded");
       if (!selectedDate) throw new Error("Please select a date");
       if (!selectedTime) throw new Error("Please select a time");
       
@@ -76,8 +100,8 @@ const Dashboard: React.FC = () => {
       
       // Prepare the meeting data
       const meetingData = {
-        IDNumber: user.uid, // User's Firebase UID as ID Number
-        Name: user.displayName || user.email?.split('@')[0] || 'Unknown',
+        IDNumber: userData.idNumber || 'Not provided', // Use the ID number from user data
+        Name: getUserName(),
         Request: helpTopicElement ? helpTopicElement.value : 'Not specified',
         AdditionalInformation: additionalInfoElement ? additionalInfoElement.value : '',
         Date: selectedDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
@@ -166,8 +190,6 @@ const Dashboard: React.FC = () => {
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
   };
-
-  // Removed unused isTimeAvailable function
 
   // Format date as Month Year
   const formatMonthYear = (date: Date): string => {
