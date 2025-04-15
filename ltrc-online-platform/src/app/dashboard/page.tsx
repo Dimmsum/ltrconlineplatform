@@ -2,7 +2,7 @@
 
 import React, { useState, FormEvent, useEffect } from 'react';
 import { signOut } from 'firebase/auth';
-import { addDoc, collection, doc, getDoc } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../useAuth'; // Adjust path as needed
 import { auth, db } from '../../firebase/config'; // Adjust path as needed
@@ -15,6 +15,16 @@ interface UserData {
   email?: string;
 }
 
+interface Meeting {
+  id: string;
+  Date: string;
+  Time: string;
+  Request: string;
+  AdditionalInformation: string;
+  createdAt: any;
+  userId: string;
+}
+
 const Dashboard: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string>('');
@@ -23,6 +33,8 @@ const Dashboard: React.FC = () => {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState<boolean>(false);
   const [userData, setUserData] = useState<UserData | null>(null);
+  const [upcomingMeetings, setUpcomingMeetings] = useState<Meeting[]>([]);
+  const [loadingMeetings, setLoadingMeetings] = useState<boolean>(true);
   const router = useRouter();
   const { user, loading } = useAuth();
   
@@ -47,6 +59,59 @@ const Dashboard: React.FC = () => {
       fetchUserData();
     }
   }, [user]);
+  
+  // Fetch upcoming meetings without complex queries
+  useEffect(() => {
+    const fetchMeetings = async () => {
+      if (!user?.uid) return;
+      
+      setLoadingMeetings(true);
+      try {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayStr = today.toISOString().split('T')[0]; // Format as YYYY-MM-DD
+        
+        // Query meetings using userId instead of userEmail to match security rules
+        const meetingsRef = collection(db, 'meetings');
+        const simpleQuery = query(meetingsRef, where('userId', '==', user.uid));
+        
+        const querySnapshot = await getDocs(simpleQuery);
+        const meetings: Meeting[] = [];
+        
+        // Client-side filtering for upcoming meetings
+        querySnapshot.forEach((doc) => {
+          const meetingData = doc.data();
+          // Only include meetings on or after today
+          if (meetingData.Date >= todayStr) {
+            meetings.push({
+              id: doc.id,
+              ...meetingData
+            } as Meeting);
+          }
+        });
+        
+        // Client-side sorting by date and time
+        meetings.sort((a, b) => {
+          // First compare by date
+          if (a.Date < b.Date) return -1;
+          if (a.Date > b.Date) return 1;
+          
+          // If same date, compare by time
+          return a.Time < b.Time ? -1 : 1;
+        });
+        
+        setUpcomingMeetings(meetings);
+      } catch (error) {
+        console.error('Error fetching meetings:', error);
+      } finally {
+        setLoadingMeetings(false);
+      }
+    };
+    
+    if (user) {
+      fetchMeetings();
+    }
+  }, [user, submitSuccess]);
   
   // Redirect if not authenticated
   useEffect(() => {
@@ -107,7 +172,8 @@ const Dashboard: React.FC = () => {
         Date: selectedDate.toISOString().split('T')[0], // Format as YYYY-MM-DD
         Time: selectedTime,
         createdAt: new Date(),
-        userEmail: user.email || 'No email'
+        userEmail: user.email || 'No email',
+        userId: user.uid // Add the user's UID to match security rules
       };
       
       // Add to Firestore
@@ -196,6 +262,12 @@ const Dashboard: React.FC = () => {
     return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   };
 
+  // Format date for display in the meeting card
+  const formatDate = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  };
+
   // Get weekday names
   const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -236,167 +308,211 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="main-content">
-        <div className="form-container">
-          {submitSuccess && (
-            <div className="success-message">
-              Your meeting has been scheduled successfully!
-              <button 
-                className="close-btn"
-                onClick={() => setSubmitSuccess(false)}
-              >
-                ×
-              </button>
-            </div>
-          )}
-          
-          {submitError && (
-            <div className="error-message">
-              {submitError}
-              <button 
-                className="close-btn"
-                onClick={() => setSubmitError(null)}
-              >
-                ×
-              </button>
-            </div>
-          )}
-          
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label htmlFor="helpDropdown" className="form-label">
-                What do you need help with?
-              </label>
-              <select 
-                id="helpDropdown" 
-                name="helpTopic"
-                defaultValue=""
-                className="form-select"
-                required
-              >
-                <option value="" disabled>--Please select an option--</option>
-                <option value="verbs">Verbs</option>
-                <option value="writing">Writing</option>
-                <option value="grammar">Grammar</option>
-                <option value="vocabulary">Vocabulary</option>
-                <option value="pronunciation">Pronunciation</option>
-              </select>
-            </div>
+        <div className="dashboard-layout">
+          <div className="schedule-form">
+            {submitSuccess && (
+              <div className="success-message">
+                Your meeting has been scheduled successfully!
+                <button 
+                  className="close-btn"
+                  onClick={() => setSubmitSuccess(false)}
+                >
+                  ×
+                </button>
+              </div>
+            )}
             
-            <div className="form-group">
-              <label htmlFor="additionalInfo" className="form-label">
-                Additional Information
-              </label>
-              <textarea
-                id="additionalInfo"
-                name="additionalInfo"
-                className="form-textarea"
-                placeholder="Please provide any additional details about what you need help with..."
-                rows={4}
-              ></textarea>
-            </div>
+            {submitError && (
+              <div className="error-message">
+                {submitError}
+                <button 
+                  className="close-btn"
+                  onClick={() => setSubmitError(null)}
+                >
+                  ×
+                </button>
+              </div>
+            )}
             
-            <div className="form-group">
-              <label className="form-label">
-                Pick a date and time
-              </label>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label htmlFor="helpDropdown" className="form-label">
+                  What do you need help with?
+                </label>
+                <select 
+                  id="helpDropdown" 
+                  name="helpTopic"
+                  defaultValue=""
+                  className="form-select"
+                  required
+                >
+                  <option value="" disabled>--Please select an option--</option>
+                  <option value="verbs">Verbs</option>
+                  <option value="writing">Writing</option>
+                  <option value="grammar">Grammar</option>
+                  <option value="vocabulary">Vocabulary</option>
+                  <option value="pronunciation">Pronunciation</option>
+                </select>
+              </div>
               
-              <div className="calendar-container">
-                {/* Calendar Navigation */}
-                <div className="calendar-nav">
-                  <button 
-                    type="button"
-                    className="calendar-nav-btn" 
-                    onClick={prevMonth}
-                  >
-                    &lt; Prev
-                  </button>
-                  <h3 className="calendar-title">{formatMonthYear(currentDate)}</h3>
-                  <button 
-                    type="button"
-                    className="calendar-nav-btn" 
-                    onClick={nextMonth}
-                  >
-                    Next &gt;
-                  </button>
-                </div>
+              <div className="form-group">
+                <label htmlFor="additionalInfo" className="form-label">
+                  Additional Information
+                </label>
+                <textarea
+                  id="additionalInfo"
+                  name="additionalInfo"
+                  className="form-textarea"
+                  placeholder="Please provide any additional details about what you need help with..."
+                  rows={4}
+                ></textarea>
+              </div>
+              
+              <div className="form-group">
+                <label className="form-label">
+                  Pick a date and time
+                </label>
                 
-                {/* Calendar Grid */}
-                <div className="calendar-grid">
-                  <div className="calendar-weekdays">
-                    {weekdays.map(day => (
-                      <div key={day} className="weekday-cell">
-                        {day}
-                      </div>
-                    ))}
+                <div className="calendar-container">
+                  {/* Calendar Navigation */}
+                  <div className="calendar-nav">
+                    <button 
+                      type="button"
+                      className="calendar-nav-btn" 
+                      onClick={prevMonth}
+                    >
+                      &lt; Prev
+                    </button>
+                    <h3 className="calendar-title">{formatMonthYear(currentDate)}</h3>
+                    <button 
+                      type="button"
+                      className="calendar-nav-btn" 
+                      onClick={nextMonth}
+                    >
+                      Next &gt;
+                    </button>
                   </div>
-                  <div className="calendar-days">
-                    {generateCalendarDays().map((day, index) => (
-                      <div
-                        key={index}
-                        className={`calendar-day ${
-                          day === null 
-                            ? 'empty-day' 
-                            : selectedDate && day === selectedDate.getDate() && currentDate.getMonth() === selectedDate.getMonth()
-                              ? 'selected-day'
-                              : ''
-                        }`}
-                        onClick={() => day && handleDateSelect(day)}
-                      >
-                        {day}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                {/* Time Selection */}
-                {selectedDate && (
-                  <div className="time-selection">
-                    <h3 className="time-selection-title">
-                      Select time for {selectedDate.toLocaleDateString()}:
-                    </h3>
-                    <div className="time-slots">
-                      {timeSlots.map(time => (
+                  
+                  {/* Calendar Grid */}
+                  <div className="calendar-grid">
+                    <div className="calendar-weekdays">
+                      {weekdays.map(day => (
+                        <div key={day} className="weekday-cell">
+                          {day}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="calendar-days">
+                      {generateCalendarDays().map((day, index) => (
                         <div
-                          key={time}
-                          className={`time-slot available-time ${
-                            selectedTime === time ? 'selected-time' : ''
+                          key={index}
+                          className={`calendar-day ${
+                            day === null 
+                              ? 'empty-day' 
+                              : selectedDate && day === selectedDate.getDate() && currentDate.getMonth() === selectedDate.getMonth()
+                                ? 'selected-day'
+                                : ''
                           }`}
-                          onClick={() => handleTimeSelect(time)}
+                          onClick={() => day && handleDateSelect(day)}
                         >
-                          {time}
+                          {day}
                         </div>
                       ))}
                     </div>
                   </div>
+                  
+                  {/* Time Selection */}
+                  {selectedDate && (
+                    <div className="time-selection">
+                      <h3 className="time-selection-title">
+                        Select time for {selectedDate.toLocaleDateString()}:
+                      </h3>
+                      <div className="time-slots">
+                        {timeSlots.map(time => (
+                          <div
+                            key={time}
+                            className={`time-slot available-time ${
+                              selectedTime === time ? 'selected-time' : ''
+                            }`}
+                            onClick={() => handleTimeSelect(time)}
+                          >
+                            {time}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {selectedDate && selectedTime && (
+                  <div className="selection-summary">
+                    Selected: {selectedDate.toLocaleDateString()} at {selectedTime}
+                  </div>
                 )}
+                
+                <input
+                  type="hidden"
+                  name="appointmentDate"
+                  value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''}
+                />
+                <input
+                  type="hidden"
+                  name="appointmentTime"
+                  value={formatTimeForSubmission(selectedTime)}
+                />
               </div>
               
-              {selectedDate && selectedTime && (
-                <div className="selection-summary">
-                  Selected: {selectedDate.toLocaleDateString()} at {selectedTime}
-                </div>
-              )}
-              
-              <input
-                type="hidden"
-                name="appointmentDate"
-                value={selectedDate ? selectedDate.toISOString().split('T')[0] : ''}
-              />
-              <input
-                type="hidden"
-                name="appointmentTime"
-                value={formatTimeForSubmission(selectedTime)}
-              />
-            </div>
+              <button 
+                type="submit" 
+                className="submit-btn" 
+                disabled={!selectedDate || !selectedTime || submitting}
+              >
+                {submitting ? 'Scheduling...' : 'Schedule Meeting'}
+              </button>
+            </form>
+          </div>
+          
+          <div className="upcoming-meetings">
+            <h2 className="upcoming-title">Upcoming Meetings</h2>
             
-            <button 
-              type="submit" 
-              className="submit-btn" 
-              disabled={!selectedDate || !selectedTime || submitting}
-            >
-              {submitting ? 'Scheduling...' : 'Schedule Meeting'}
-            </button>
-          </form>
+            {loadingMeetings ? (
+              <div className="meetings-loading">
+                <div className="loading-spinner-small"></div>
+                <p>Loading your meetings...</p>
+              </div>
+            ) : upcomingMeetings.length > 0 ? (
+              <div className="meetings-list">
+                {upcomingMeetings.map((meeting) => (
+                  <div className="meeting-card" key={meeting.id}>
+                    <div className="meeting-header">
+                      <span className="meeting-topic">{meeting.Request}</span>
+                      <span className="meeting-date">{formatDate(meeting.Date)}</span>
+                    </div>
+                    
+                    <div className="meeting-time">
+                      <span className="time-label">Time:</span>
+                      <span className="time-value">{meeting.Time}</span>
+                    </div>
+                    
+                    {meeting.AdditionalInformation && (
+                      <div className="meeting-details">
+                        {meeting.AdditionalInformation}
+                      </div>
+                    )}
+                    
+                    <div className="meeting-actions">
+                      <a href="#" className="zoom-link">Join Zoom Meeting</a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="no-meetings">
+                <p>You don't have any upcoming meetings.</p>
+                <p>Schedule one using the form on the left!</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
